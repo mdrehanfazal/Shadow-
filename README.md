@@ -1,37 +1,44 @@
 # Shadow Android Assistant
 
-Shadow is a non-root Android assistant starter with a conversational interface. Talk by typing or tapping **Speak**; speech recognition and text-to-speech use the Android services available on your device.
+Shadow is a safe, non-root Android assistant starter. It is designed to help with common phone tasks without bypassing Android's security or taking over the device.
 
-## Current features
+## Features in this version
 
-- Natural-language matching for common greetings and simple commands
-- Open installed apps by name (for example, “Hey Shadow, open WhatsApp”)
+- Natural conversational commands and greetings
+- App launching with voice or typed input
 - Web search through the browser
-- Open the dialer for a number or a contact name; you confirm the call
-- Prepare message/comment text in Android's share chooser; review it before sending or posting
-- Open the camera
-- Save, list, and clear preferences stored locally on the device
-- Block explicit money-transfer requests
-- Friendly spoken replies with adjustable Android text-to-speech voice settings
+- Dialer support with a final review before calling
+- Camera access
+- Map navigation support
+- Draft generation for texts, messages, and comments
+- Notes and reminder-style prompt generation
+- Local memory with user-defined preferences
+- Safe handling of sensitive requests, including payment and money transfer blocking
 
-## Build and run
-
-1. Open the repository in a current Android Studio release.
-2. Sync Gradle and install Android SDK 35 if prompted.
-3. Run the `app` configuration on an Android 8.0+ device or emulator.
-4. Grant microphone permission when you tap **Speak**. The speech service and supported languages vary by device.
-
-## Example requests
+## Example commands
 
 - “Hey Shadow, open WhatsApp”
-- “Search for budget phones under 200”
-- “Call +1 555 010 1234” (opens the dialer; you place the call)
-- “Draft a message to Alex saying I'll be 10 minutes late”
-- “Write a comment saying great video”
+- “Search for weather today”
+- “Call 9876543210”
+- “Take a photo”
+- “Navigate to Delhi”
 - “Remember that I prefer short replies”
 - “What do you remember?”
-- “Forget everything”
+- “Draft a message to Alex saying I'll be 10 minutes late”
+- “Take note buy milk and charger”
+- “Set reminder call mom at 7 pm”
 
-## Limits and safety
+## Safety model
 
-This MVP is not connected to an AI model and does not retrain itself. Its “learning” is explicit user-taught preferences saved locally. It cannot see inside other apps, read WhatsApp conversations, or silently watch the screen. App integrations and screen assistance require user-visible permissions and may not be available in every app. It does not send messages, post comments, place calls directly, or initiate money transfers; those actions require you to review and confirm in the relevant app.
+Shadow is intentionally limited to what Android allows by default. It cannot secretly read your screen, open every app without review, or handle money transfers. Sensitive actions are blocked or routed through the system app in a user-review flow.
+
+## Run the app
+
+1. Open the repository in Android Studio.
+2. Let Gradle sync.
+3. Choose an Android emulator or device.
+4. Tap Speak or type a request.
+
+## Notes
+
+This is still a local, rule-based assistant MVP. It does not yet connect to a cloud LLM or full AI model, but it gives a strong foundation for a personal Android voice assistant.

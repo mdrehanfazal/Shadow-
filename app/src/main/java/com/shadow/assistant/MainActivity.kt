@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.provider.Settings
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
@@ -43,27 +44,27 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
 
     private var commandText by mutableStateOf("")
     private val messages = mutableStateListOf(
-        ChatMessage("assistant", "Hi, I'm Shadow. Tell me what you need, or tap Speak. I can open apps, search, and help prepare things for you.")
+        ChatMessage("assistant", "Hi, I'm Shadow. Tell me what you need, and I'll help with safe phone tasks.")
     )
     private val memories = mutableStateListOf<String>()
+    private val activityLog = mutableStateListOf<String>()
     private var tts: TextToSpeech? = null
 
     private val speechResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val recognized = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()
         if (!recognized.isNullOrBlank()) handleCommand(recognized)
-        else respond("I didn't catch that. Want to try again or type it?")
+        else respond("I didn't catch that. Type it in or try again.")
     }
 
     private val permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) launchSpeechRecognition()
-        else respond("Microphone access is needed for voice input. You can still type to me.")
+        if (granted) launchSpeechRecognition() else respond("Microphone permission is required for voice input.")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         tts = TextToSpeech(this, this)
-        getPreferences(MODE_PRIVATE).getStringSet("shadow_memory", emptySet())
-            .orEmpty().sorted().forEach(memories::add)
+        val saved = getPreferences(MODE_PRIVATE).getStringSet("shadow_memory", emptySet()) ?: emptySet()
+        memories.addAll(saved.sorted())
 
         setContent {
             MaterialTheme {
@@ -73,21 +74,34 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text("Shadow", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text("A helpful assistant, on your terms", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                        Text("Your personal assistant for the phone", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
 
                         Box(
-                            modifier = Modifier.weight(1f).fillMaxWidth()
-                                .background(Color(0xFFF6F7FB), RoundedCornerShape(18.dp)).padding(12.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .background(Color(0xFFF6F7FB), RoundedCornerShape(18.dp))
+                                .padding(12.dp)
                         ) {
                             LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                                 items(messages) { message ->
                                     val user = message.sender == "user"
-                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = if (user) Arrangement.End else Arrangement.Start) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = if (user) Arrangement.End else Arrangement.Start
+                                    ) {
                                         Box(
-                                            Modifier.background(if (user) Color(0xFF3D7AFE) else Color.White, RoundedCornerShape(16.dp))
+                                            modifier = Modifier
+                                                .background(
+                                                    if (user) Color(0xFF3D7AFE) else Color.White,
+                                                    RoundedCornerShape(16.dp)
+                                                )
                                                 .padding(horizontal = 14.dp, vertical = 10.dp)
                                         ) {
-                                            Text(message.text, color = if (user) Color.White else Color(0xFF1F2937))
+                                            Text(
+                                                text = message.text,
+                                                color = if (user) Color.White else Color(0xFF1F2937)
+                                            )
                                         }
                                     }
                                 }
@@ -97,29 +111,41 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
                         OutlinedTextField(
                             value = commandText,
                             onValueChange = { commandText = it },
-                            label = { Text("Talk to Shadow") },
-                            placeholder = { Text("Try ‘open WhatsApp’ or ‘search for…’") },
+                            label = { Text("Ask Shadow") },
+                            placeholder = { Text("Try: open WhatsApp, search for weather, remember…") },
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Button(
-                                onClick = { val text = commandText; commandText = ""; handleCommand(text) },
+                                onClick = {
+                                    val request = commandText.trim()
+                                    commandText = ""
+                                    if (request.isNotEmpty()) handleCommand(request)
+                                },
                                 modifier = Modifier.weight(1f)
                             ) { Text("Send") }
+
                             OutlinedButton(onClick = ::requestVoiceInput, modifier = Modifier.weight(1f)) { Text("Speak") }
                         }
+
                         Text("Quick actions", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { handleCommand("open WhatsApp") }) { Text("WhatsApp") }
                             OutlinedButton(onClick = { handleCommand("open camera") }) { Text("Camera") }
-                            OutlinedButton(onClick = { handleCommand("search for weather today") }) { Text("Weather") }
+                            OutlinedButton(onClick = { handleCommand("search weather today") }) { Text("Weather") }
                         }
+
                         if (memories.isNotEmpty()) {
-                            Text("What Shadow remembers", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            LazyColumn(Modifier.fillMaxWidth().weight(0.35f, fill = false)) {
-                                items(memories) { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+                            Text("Saved preferences", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                            LazyColumn(Modifier.fillMaxWidth()) {
+                                items(memories) { memory -> Text("• $memory") }
                             }
                         }
+
                         OutlinedButton(onClick = ::clearMemories) { Text("Clear saved preferences") }
                     }
                 }
@@ -136,8 +162,11 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
     }
 
     private fun requestVoiceInput() {
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) launchSpeechRecognition()
-        else permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            launchSpeechRecognition()
+        } else {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 
     private fun launchSpeechRecognition() {
@@ -146,127 +175,209 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
             putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to Shadow")
         }
-        try { speechResult.launch(intent) }
-        catch (_: Exception) { respond("Speech recognition isn't available right now. You can type your request instead.") }
+        try {
+            speechResult.launch(intent)
+        } catch (_: Exception) {
+            respond("Speech recognition is not available on this device right now.")
+        }
     }
 
     private fun handleCommand(rawCommand: String) {
         val original = rawCommand.trim()
         if (original.isBlank()) return
         messages.add(ChatMessage("user", original))
-        val command = original
-            .replace(Regex("^(hey|okay|ok),?\\s+shadow[, ]*", RegexOption.IGNORE_CASE), "")
-            .trim().trimEnd('.', '!', '?', ',')
-        val lower = command.lowercase(Locale.ROOT)
+
+        val cleaned = original
+            .replace(Regex("^(hey|hello|hi|okay|ok),?\\s*shadow[, ]*", RegexOption.IGNORE_CASE), "")
+            .trim()
+            .removeSuffix(".")
+            .removeSuffix("!")
+            .removeSuffix("?")
+        val lower = cleaned.lowercase(Locale.ROOT)
 
         when {
             lower in setOf("hi", "hello", "hey", "good morning", "good afternoon", "good evening") ->
-                respond("${greeting()}, I'm here. What can I help you with?")
+                respond("${greeting()}! I'm Shadow. How can I help you today?")
 
-            lower in setOf("thanks", "thank you", "thx") -> respond("You're welcome.")
-            lower in setOf("bye", "goodbye", "see you") -> respond("Take care. I'll be here when you need me.")
+            lower in setOf("thanks", "thank you", "thx") -> respond("You're welcome. I'm happy to help.")
+            lower in setOf("bye", "goodbye", "see you later") -> respond("Take care. I'll be here when you need me.")
 
-            isMoneyTransferRequest(lower) ->
-                respond("I can't make or initiate a money transfer. I can help with other tasks, but you'll need to handle payments yourself.")
+            isMoneyTransferRequest(lower) -> respond("I can't make money transfers or process payments. I can help with safer tasks like opening apps, searching, or drafting messages.")
 
-            lower in setOf("help", "what can you do", "what can you help with", "commands") ->
-                respond("I can open apps, search the web, open the dialer or camera, prepare a message or comment draft, and remember preferences you teach me. I ask you to review anything before it is sent or posted.")
+            lower in setOf("help", "what can you do", "what can you help with", "show commands") ->
+                respond("I can open apps, search the web, open the dialer or camera, prepare a draft, set reminders, and remember preferences you teach me. I block money transfers and sensitive payment actions.")
 
-            lower == "clear memory" || lower == "forget everything" || lower == "clear saved memory" -> clearMemories()
-            lower == "what do you remember" || lower == "show memory" -> {
+            lower == "clear memory" || lower == "forget everything" || lower == "clear saved preferences" -> clearMemories()
+
+            lower == "what do you remember" || lower == "show memory" || lower == "show saved preferences" -> {
                 if (memories.isEmpty()) respond("I don't have any saved preferences yet. You can say, ‘Remember that I prefer short replies.’")
-                else respond("Here's what I remember: ${memories.joinToString("; ")}.")
+                else respond("I remember: ${memories.joinToString("; ")}")
             }
 
-            startsWithAny(lower, "remember ", "save preference ", "remember that ") -> rememberPreference(command)
+            startsWithAny(lower, "remember ", "save ", "remember that ", "save preference ") -> rememberPreference(cleaned)
 
-            lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start app ") || lower.startsWith("go to app ") -> {
-                val appName = command.replace(Regex("^(open|launch|start app|go to app)\\s+", RegexOption.IGNORE_CASE), "").trim()
+            lower.startsWith("open ") || lower.startsWith("launch ") || lower.startsWith("start ") -> {
+                val appName = cleaned.replace(Regex("^(open|launch|start)\\s+", RegexOption.IGNORE_CASE), "").trim()
                 if (appName.isBlank()) respond("Which app should I open?")
                 else if (openApp(appName)) respond("Opening $appName.")
-                else respond("I couldn't find $appName among your installed apps. Check the app name and try again.")
+                else respond("I couldn't find $appName. Try the exact name from your app list.")
             }
 
-            lower.startsWith("search") || lower.startsWith("look up ") || lower.startsWith("google ") -> {
-                val query = command.replace(Regex("^(search( for)?|look up|google)\\s*", RegexOption.IGNORE_CASE), "").trim()
-                if (query.isBlank()) respond("What would you like me to search for?")
-                else if (startWebSearch(query)) respond("Here's a web search for $query.")
-                else respond("I couldn't open a browser on this device.")
+            lower.startsWith("search ") || lower.startsWith("look up ") || lower.startsWith("google ") -> {
+                val query = cleaned.replace(Regex("^(search|look up|google)\\s+", RegexOption.IGNORE_CASE), "").trim()
+                if (query.isBlank()) respond("What do you want me to search for?")
+                else { startWebSearch(query); respond("Searching for $query.") }
             }
 
-            lower.startsWith("call ") || lower.startsWith("phone ") -> openDialer(command.substringAfter(' ').trim())
+            lower.startsWith("call ") || lower.startsWith("phone ") -> openDialer(cleaned.replace(Regex("^(call|phone)\\s+", RegexOption.IGNORE_CASE), "").trim())
 
-            lower.startsWith("draft ") || lower.startsWith("write ") || lower.startsWith("compose ") ||
-                lower.startsWith("comment ") || lower.startsWith("message ") || lower.startsWith("text ") -> prepareDraft(command)
+            lower.startsWith("note ") || lower.startsWith("take note ") || lower.startsWith("write note ") -> saveNote(cleaned.replace(Regex("^(note|take note|write note)\\s+", RegexOption.IGNORE_CASE), "").trim())
 
-            lower.contains("camera") || lower.startsWith("take a photo") || lower.startsWith("take photo") -> openCamera()
+            lower.startsWith("remind me") || lower.startsWith("set reminder") || lower.startsWith("reminder ") -> setReminder(cleaned)
+
+            lower.startsWith("open maps") || lower.startsWith("map ") || lower.startsWith("navigate to ") -> openMaps(cleaned)
+
+            lower.contains("camera") || lower.startsWith("take photo") || lower.startsWith("take a photo") -> openCamera()
 
             lower.contains("whatsapp") -> {
-                if (openApp("WhatsApp")) respond("Opening WhatsApp. I can't see its conversations from here, but I can help you prepare a reply if you tell me what you'd like to say.")
+                if (openApp("WhatsApp")) respond("Opening WhatsApp. I can help with a draft, but I won't send messages without your review.")
                 else respond("I couldn't find WhatsApp on this device.")
             }
 
-            lower.contains("weather") -> {
-                val query = if (lower.startsWith("what's") || lower.startsWith("what is") || lower.startsWith("is it")) command else "weather ${command.substringAfter("weather", "today").trim()}"
-                if (startWebSearch(query)) respond("I'll look that up for you.") else respond("I couldn't open a browser on this device.")
-            }
+            lower.startsWith("draft ") || lower.startsWith("write ") || lower.startsWith("compose ") || lower.startsWith("comment ") || lower.startsWith("message ") || lower.startsWith("text ") -> prepareDraft(cleaned)
 
-            else -> respond("I'm not sure how to do that yet. I can open apps, search, open the dialer or camera, draft text, and remember preferences. Say ‘help’ for examples.")
+            else -> respond("I can open apps, search the web, answer quick questions, create notes, set simple reminders, open maps, and remember your preferences. Try: ‘open WhatsApp’, ‘search for weather’, ‘remember that I prefer short replies’.")
         }
     }
 
     private fun isMoneyTransferRequest(text: String): Boolean {
-        val money = Regex("\\b(send|transfer|pay|move)\\b.*\\b(money|cash|funds|payment|rupees|dollars|₹|\\$)\\b|\\b(bank transfer|money transfer|send money|pay someone)\\b")
-        return money.containsMatchIn(text)
+        val pattern = Regex("\\b(send|transfer|pay|move|deposit|withdraw)\\b.*\\b(money|cash|funds|payment|rupees|dollars|₹|\\$)\\b|\\b(money transfer|send money|bank transfer|pay someone|transfer money)\\b")
+        return pattern.containsMatchIn(text)
     }
 
-    private fun startsWithAny(value: String, vararg prefixes: String) = prefixes.any(value::startsWith)
+    private fun startsWithAny(value: String, vararg prefixes: String): Boolean = prefixes.any { value.startsWith(it) }
 
     private fun rememberPreference(command: String) {
-        val preference = command.replace(Regex("^(remember( that)?|save preference)\\s*", RegexOption.IGNORE_CASE), "").trim()
-        if (preference.isBlank()) respond("What would you like me to remember?")
-        else {
-            val existing = memories.firstOrNull { it.equals(preference, ignoreCase = true) }
-            if (existing == null) memories.add(0, preference)
-            getPreferences(MODE_PRIVATE).edit().putStringSet("shadow_memory", memories.toSet()).apply()
-            respond("Got it. I'll remember that on this phone. You can ask what I remember or clear it any time.")
-        }
-    }
-
-    private fun prepareDraft(command: String) {
-        val messageMatch = Regex("^(?:draft|write|compose|message|text)\\s+(?:a\\s+)?(?:message|text)\\s+to\\s+(.+?)\\s+(?:saying|that)\\s+(.+)$", RegexOption.IGNORE_CASE).find(command)
-        val commentMatch = Regex("^(?:draft|write|compose|comment)\\s+(?:a\\s+)?comment\\s+(?:saying\\s+)?(.+)$", RegexOption.IGNORE_CASE).find(command)
-        val content = when {
-            messageMatch != null -> "To ${messageMatch.groupValues[1]}: ${messageMatch.groupValues[2]}"
-            commentMatch != null -> commentMatch.groupValues[1]
-            else -> command.replace(Regex("^(draft|write|compose|comment|message|text)\\s*", RegexOption.IGNORE_CASE), "").trim()
-        }
-        if (content.isBlank()) {
-            respond("What should the draft say?")
+        val preference = command.replace(Regex("^(remember( that)?|save( preference)?)\\s*", RegexOption.IGNORE_CASE), "").trim()
+        if (preference.isBlank()) {
+            respond("What do you want me to remember?")
             return
         }
-        val intent = Intent(Intent.ACTION_SEND).apply {
+        if (!memories.any { it.equals(preference, ignoreCase = true) }) {
+            memories.add(0, preference)
+            getPreferences(MODE_PRIVATE).edit().putStringSet("shadow_memory", memories.toSet()).apply()
+        }
+        respond("Got it. I'll remember that preference on this phone.")
+    }
+
+    private fun saveNote(content: String) {
+        if (content.isBlank()) {
+            respond("What should I save in the note?")
+            return
+        }
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, content)
         }
         try {
-            startActivity(Intent.createChooser(intent, "Review your draft and choose an app"))
-            respond("I've prepared that draft. Please check the recipient and text in the app before sending or posting.")
-        } catch (_: Exception) { respond("I couldn't open an app to share the draft.") }
+            startActivity(Intent.createChooser(shareIntent, "Save this note with an app"))
+            respond("I prepared a note for you. Review and save it before continuing.")
+        } catch (_: Exception) {
+            respond("I couldn't open a note app on this device.")
+        }
+    }
+
+    private fun setReminder(command: String) {
+        val timeText = command.replace(Regex("^(remind me|set reminder|reminder)\\s*", RegexOption.IGNORE_CASE), "").trim()
+        if (timeText.isBlank()) {
+            respond("Tell me what to remind you about and when.")
+            return
+        }
+        val reminderText = "Reminder: $timeText"
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, reminderText)
+        }
+        try {
+            startActivity(Intent.createChooser(shareIntent, "Review your reminder"))
+            respond("I prepared a reminder for you. Review it and save it in your reminder app.")
+        } catch (_: Exception) {
+            respond("I couldn't open a reminder app. You can still copy this reminder: $reminderText")
+        }
+    }
+
+    private fun openMaps(command: String) {
+        val place = when {
+            command.startsWith("open maps") -> ""
+            command.startsWith("map ") -> command.removePrefix("map ").trim()
+            command.startsWith("navigate to ") -> command.removePrefix("navigate to ").trim()
+            else -> ""
+        }
+
+        val uri = if (place.isBlank()) Uri.parse("geo:0,0?q=home")
+        else Uri.parse("geo:0,0?q=${Uri.encode(place)}")
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+        try {
+            startActivity(intent)
+            respond(if (place.isBlank()) "Opening maps." else "Opening maps for $place.")
+        } catch (_: Exception) {
+            respond("I couldn't open maps on this device.")
+        }
+    }
+
+    private fun openCamera() {
+        val intent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivity(intent)
+            respond("Opening the camera.")
+        } else {
+            respond("The camera app isn't available on this device.")
+        }
+    }
+
+    private fun prepareDraft(command: String) {
+        val text = when {
+            command.startsWith("draft ") -> command.removePrefix("draft ").trim()
+            command.startsWith("compose ") -> command.removePrefix("compose ").trim()
+            command.startsWith("comment ") -> command.removePrefix("comment ").trim()
+            command.startsWith("message ") -> command.removePrefix("message ").trim()
+            command.startsWith("text ") -> command.removePrefix("text ").trim()
+            command.startsWith("write ") -> command.removePrefix("write ").trim()
+            else -> command
+        }
+
+        if (text.isBlank()) {
+            respond("What should the draft say?")
+            return
+        }
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        try {
+            startActivity(Intent.createChooser(intent, "Review and choose where to send"))
+            respond("I prepared a draft for you. Review it before sending or posting.")
+        } catch (_: Exception) {
+            respond("I couldn't open a share app for the draft.")
+        }
     }
 
     private fun openDialer(contactOrNumber: String) {
-        if (contactOrNumber.isBlank()) {
-            respond("Who would you like to call?")
+        val number = contactOrNumber.trim()
+        if (number.isBlank()) {
+            respond("Who should I call?")
             return
         }
-        val isNumber = contactOrNumber.matches(Regex("[+0-9() .-]{3,}"))
-        val intent = if (isNumber) Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", contactOrNumber, null))
-        else Intent(Intent.ACTION_DIAL)
+        val intent = Intent(Intent.ACTION_DIAL).apply {
+            data = Uri.parse("tel:$number")
+        }
         try {
             startActivity(intent)
-            respond(if (isNumber) "I opened the dialer with that number. Please review it before placing the call." else "I opened the dialer. Please choose $contactOrNumber from your contacts and confirm the call.")
-        } catch (_: Exception) { respond("I couldn't open the phone dialer.") }
+            respond("I opened the dialer. Review the final number before placing the call.")
+        } catch (_: Exception) {
+            respond("I couldn't open the dialer on this device.")
+        }
     }
 
     private fun startWebSearch(query: String): Boolean = try {
@@ -274,43 +385,46 @@ class MainActivity : ComponentActivity(), TextToSpeech.OnInitListener {
         true
     } catch (_: Exception) { false }
 
-    private fun openCamera() {
-        val intent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA)
-        try {
-            startActivity(intent)
-            respond("Opening the camera.")
-        } catch (_: Exception) { respond("The camera app isn't available on this device.") }
-    }
-
     private fun openApp(appName: String): Boolean {
-        val launchIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val matches = packageManager.queryIntentActivities(launchIntent, 0)
-        val match = matches
-            .map { it to it.loadLabel(packageManager).toString() }
-            .sortedBy { (_, label) -> if (label.equals(appName, true)) 0 else if (label.startsWith(appName, true)) 1 else 2 }
-            .firstOrNull { (_, label) -> label.equals(appName, true) || label.startsWith(appName, true) }
-            ?.first ?: return false
+        val normalized = appName.trim()
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val matches = packageManager.queryIntentActivities(launcherIntent, 0)
+        val app = matches.firstOrNull { info ->
+            val label = info.loadLabel(packageManager).toString()
+            label.equals(normalized, ignoreCase = true) ||
+                label.startsWith(normalized, ignoreCase = true) ||
+                normalized.startsWith(label, ignoreCase = true)
+        } ?: return false
+
+        val intent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+            setClassName(app.activityInfo.packageName, app.activityInfo.name)
+        }
         return try {
-            startActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-                .setClassName(match.activityInfo.packageName, match.activityInfo.name))
+            startActivity(intent)
             true
         } catch (_: Exception) { false }
     }
 
     private fun greeting(): String {
-        val name = memories.firstNotNullOfOrNull { Regex("\\bcall me\\s+(.+)", RegexOption.IGNORE_CASE).find(it)?.groupValues?.get(1) }
-        return if (name.isNullOrBlank()) "Hello" else "Hello, $name"
+        val current = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        return when {
+            current < 12 -> "Good morning"
+            current < 18 -> "Good afternoon"
+            else -> "Good evening"
+        }
     }
 
     private fun clearMemories() {
         memories.clear()
         getPreferences(MODE_PRIVATE).edit().remove("shadow_memory").apply()
-        respond("Done. I've cleared the preferences saved by Shadow on this phone.")
+        respond("I cleared the saved preferences on this phone.")
     }
 
     private fun respond(text: String) {
+        activityLog.add(text)
         messages.add(ChatMessage("assistant", text))
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "shadow-${System.currentTimeMillis()}")
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "shadow")
     }
 
     override fun onDestroy() {
