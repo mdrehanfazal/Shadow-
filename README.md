@@ -1,33 +1,41 @@
-# Shadow for Android
+# Shadow Android Assistant
 
-Shadow is a voice-first Android assistant starter app. It can listen when you tap the microphone, speak replies, open installed apps, prepare message drafts for your review, and remember preferences you explicitly teach it.
+Shadow is a safer, non-root Android assistant starter. It focuses on the kinds of tasks a personal phone assistant can do without bypassing Android's permissions or taking over the device.
 
-## Safety and scope
+## What Shadow can do
 
-This is a non-root starter MVP, not unrestricted phone control. Android and other apps control what an assistant can see or automate. Shadow does not secretly monitor the screen, bypass permissions, send messages automatically, or perform money transfers. Drafts are handed to Android's share chooser so you can select the app and review/send them yourself.
+- Open installed apps such as WhatsApp, Maps, YouTube, or Chrome
+- Speak aloud and listen by tapping the mic
+- Search the web using the default browser
+- Draft messages or comments for your review
+- Start a call with the dialer
+- Open the camera or other built-in app flows
+- Remember preferences you teach it locally on the phone
+- Keep a visible action log and permission-safe behavior
 
-## Build
+## What Shadow does not do
 
-1. Open this repository in the current stable Android Studio.
-2. Let Gradle sync and install the Android SDK 35 platform if prompted.
-3. Run the `app` configuration on an Android 8.0+ device or emulator.
-4. Tap the microphone and grant microphone access to use speech recognition. Speech recognition availability and language depend on the device's installed services.
+- No money transfer or bank payments
+- No hidden background spying or secret screen capture without your explicit action
+- No system-rooted takeover or bypass of Android's security model
 
-You can also build from a machine with Android SDK and Gradle available:
+## Running the app
 
-```sh
-gradle assembleDebug
-```
+1. Open the repo in Android Studio.
+2. Let Gradle sync.
+3. Run the app on an emulator or actual device.
+4. Tap Speak to voice command it, or type a command in the box.
 
-## Included
+## Example commands
 
-- Kotlin + Jetpack Compose interface
-- Tap-to-talk speech recognition and spoken replies
-- Opening installed apps by their displayed name
-- Message draft handoff through Android's share sheet (you approve any sending)
-- Explicitly taught preferences stored locally on the device, with a clear-memory action
-- A basic action boundary that rejects money-transfer requests
+- Open WhatsApp
+- Search for best budget travel in Goa
+- Call mom
+- Draft a message to team: running 10 minutes late
+- Remember that I prefer short replies
+- Open camera
+- What can you do?
 
-## Planned next steps
+## Safety model
 
-Add user-started, Android-compliant screen sharing; calendar/reminder integrations; optional AI provider configuration; and a visible action history. Those integrations need additional permissions and should keep confirmation before external actions.
+The design favors user approval and visible actions. For message sending, comment posting, or anything externally risky, Shadow prepares the action in an app chooser or opens the appropriate screen so you remain in control.
